@@ -1,4 +1,4 @@
-local service_transactions_tab = gui.get_tab("Service Transactions")
+local service_transactions_tab = gui.get_tab("GUI_TAB_NETWORK"):add_tab("Service Transactions")
 
 local transactions = {
     "SERVICE_EARN_PICKUP",
@@ -250,25 +250,36 @@ local transactions = {
 local selected_transaction = 0
 
 service_transactions_tab:add_imgui(function()
+    if not network.is_session_started() or not script.is_active("shop_controller") then
+        ImGui.Text("Please join GTA Online.")
+        return
+    end
+	
     ImGui.SetNextItemWidth(500)
     selected_transaction = ImGui.Combo("Select Transaction", selected_transaction, transactions, #transactions)
     
     if ImGui.Button("Trigger Transaction") then
-        script.run_in_fiber(function(_script)
-            if SCRIPT.GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH(joaat("freemode")) > 0 and SCRIPT.GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH(joaat("shop_controller")) > 0 then
-                local hash    = joaat(transactions[selected_transaction + 1])
-                local price   = NETSHOPPING.NET_GAMESERVER_GET_PRICE(hash, joaat("CATEGORY_SERVICE_WITH_THRESHOLD"), true)
-                local tempvar = 0
-                script.call_function("TST", "shop_controller", "2D 06 09 00 00 5D ? ? ? 06", 0, {hash, price, tempvar, 1, 0, 0}) -- Last arg seems to be unused
-                _script:sleep(500)
+        script.run_in_fiber(function(script)
+            local hash  = joaat(transactions[selected_transaction + 1])
+            local price = NETSHOPPING.NET_GAMESERVER_GET_PRICE(hash, joaat("CATEGORY_SERVICE_WITH_THRESHOLD"), true)
+            local index = memory.allocate(4)		
+            if NETSHOPPING.NET_GAMESERVER_CATALOG_ITEM_KEY_IS_VALID(hash) then
+                scr_function.call_script_function("shop_controller", "FST", "2D 06 09 00 00 5D ? ? ? 06", "void", {
+                    { "int", hash   },
+                    { "int", price  },
+                    { "ptr", index  },
+                    { "bool", true  }, -- To Bank
+                    { "bool", false }, -- To Wallet
+                    { "bool", false } -- This seems to be unused
+                })
+                memory.free(index)
+                script:sleep(500)
                 if globals.get_int(4537455) ~= 1 then
                     gui.show_message("Service Transactions", "Transaction Successful.")
                 else
                     gui.show_error("Service Transactions", "Transaction Failed.")
                     globals.set_int(4537455, 0) -- There is an unused code in the function that bails you if the transaction fails
                 end
-            else
-                gui.show_error("Service Transactions", "freemode and shop_controller is not running.")
             end
         end)
     end
