@@ -245,6 +245,12 @@ local transactions = {
     "SERVICE_EARN_BOUNTY24_PIZZA_DELIVERY",
     "SERVICE_EARN_BOUNTY24_UFO_ABDUCTION",
     "SERVICE_EARN_BOUNTY24_AWARD"
+    "SERVICE_EARN_ARMS_TRAFFICKING",
+    "SERVICE_EARN_OSCAR_GUZMAN_MISSION",
+    "SERVICE_EARN_HACKER_ROBBERY_FINALE",
+    "SERVICE_EARN_HACKER_ROBBERY_PREP",
+    "SERVICE_EARN_MCKENZIE_AWARD",
+    "SERVICE_EARN_HACKER_DEN_AWARD"	
 }
 
 local selected_transaction = 0
@@ -260,26 +266,30 @@ service_transactions_tab:add_imgui(function()
     
     if ImGui.Button("Trigger Transaction") then
         script.run_in_fiber(function(script)
-            local hash  = joaat(transactions[selected_transaction + 1])
-            local price = NETSHOPPING.NET_GAMESERVER_GET_PRICE(hash, joaat("CATEGORY_SERVICE_WITH_THRESHOLD"), true)
-            local index = memory.allocate(4)		
-            if NETSHOPPING.NET_GAMESERVER_CATALOG_ITEM_KEY_IS_VALID(hash) then
-                scr_function.call_script_function("shop_controller", "FST", "2D 06 09 00 00 5D ? ? ? 06", "void", {
-                    { "int", hash   },
-                    { "int", price  },
-                    { "ptr", index  },
-                    { "bool", true  }, -- To Bank
-                    { "bool", false }, -- To Wallet
-                    { "bool", false } -- This seems to be unused
-                })
-                memory.free(index)
-                script:sleep(500)
-                if globals.get_int(4537455) ~= 1 then
-                    gui.show_message("Service Transactions", "Transaction Successful.")
-                else
-                    gui.show_error("Service Transactions", "Transaction Failed.")
-                    globals.set_int(4537455, 0) -- There is an unused code in the function that bails you if the transaction fails
+            if NETSHOPPING.NET_GAMESERVER_USE_SERVER_TRANSACTIONS() then
+                local hash  = joaat(transactions[selected_transaction + 1])
+                local price = NETSHOPPING.NET_GAMESERVER_GET_PRICE(hash, joaat("CATEGORY_SERVICE_WITH_THRESHOLD"), true)
+                local index = memory.allocate(4)		
+                if NETSHOPPING.NET_GAMESERVER_CATALOG_ITEM_KEY_IS_VALID(hash) then
+                    scr_function.call_script_function("shop_controller", "FST", "2D 06 09 00 00 5D ? ? ? 06", "void", {
+                        { "int", hash   },
+                        { "int", price  },
+                        { "ptr", index  },
+                        { "bool", true  }, -- To Bank
+                        { "bool", false }, -- To Wallet
+                        { "bool", false }  -- This seems to be unused
+                    })
+                    memory.free(index)
+                    script:sleep(500)
+                    if globals.get_int(4538089) ~= 1 then
+                        gui.show_message("Service Transactions", "Transaction Successful.")
+                    else
+                        gui.show_error("Service Transactions", "Transaction Failed.")
+                        globals.set_int(4538089, 0) -- There is an unused code in the function that bails you if the transaction fails
+                    end
                 end
+            else
+                gui.show_error("Service Transactions", "Cannot trigger transaction. Are you using FSL?")
             end
         end)
     end
